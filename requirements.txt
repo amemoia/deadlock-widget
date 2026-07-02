@@ -1,0 +1,4 @@
+Pillow>=12.3.0
+python-dotenv>=1.2.2
+pytesseract>=0.3.13
+rapidocr-onnxruntime>=1.4.4
