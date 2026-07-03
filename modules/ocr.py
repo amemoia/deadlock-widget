@@ -270,7 +270,7 @@ def _tesseract_words(image: Image.Image, offset: tuple[int, int]) -> list[OcrWor
 
 
 @lru_cache(maxsize=1)
-def _rapidocr_engine() -> RapidOCR:
+def _rapidocr_engine() -> object:
     if RapidOCR is None:
         raise RuntimeError("RapidOCR is not installed.")
     return RapidOCR()
