@@ -11,9 +11,10 @@ I recommend Chloe Cinders [Custom Widget Guide](https://chloecinders.com/blog/di
 
 This script searches for the Steam install directory in Program Files (x86), but you can change the directory by modifying `SCR_DIR` in `modules/consts.py`. I have not tested this on Linux at all though. A manual mode also exists in case the script can't read your stats well
 
-## Usage
+For the best results I recommend installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows), as the other option is prone to making mistakes and i might end up removing it altogether
 
-For the best results I recommend installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows), as the other option is prone to making mistakes
+
+## Usage
 
 Here's what the script does:
 
