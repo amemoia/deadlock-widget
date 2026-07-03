@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import shutil
 import subprocess
 import sys
 import os
@@ -11,20 +12,21 @@ from pathlib import Path
 
 def _bootstrap_requirements() -> None:
     requirements = Path(__file__).with_name("requirements.txt")
-    missing = [name for name in ("dotenv", "PIL", "pytesseract", "rapidocr_onnxruntime") if find_spec(name) is None]
+    missing = [name for name in ("dotenv", "PIL") if find_spec(name) is None]
+    if find_spec("pytesseract") is None and find_spec("rapidocr_onnxruntime") is None:
+        missing.append("pytesseract|rapidocr_onnxruntime")
 
     if not missing:
         return
 
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(requirements)])
 
-
 _bootstrap_requirements()
 
 from dotenv import load_dotenv, set_key
 
 from modules.models import DeadlockProfile, DeadlockStats
-from modules.ocr import group_words_into_lines, line_text, run_ocr
+from modules.ocr import get_ocr_backend_name, get_tesseract_exe, group_words_into_lines, line_text, run_ocr, save_region_debug_crops, save_region_debug_image
 from modules.parser import build_hero_card_url, build_hero_image_url, parse_deadlock_profile
 from modules.screenshot import find_latest_scr
 from modules.widget_client import DiscordWidgetClient
@@ -49,6 +51,36 @@ def env_write(values: dict[str, str], path: Path = ENV_FILE) -> None:
     for key in ENV_ORDER:
         value = values.get(key)
         if value: set_key(str(path), key, value, quote_mode="never")
+
+
+def resolve_tesseract(values: dict[str, str]) -> dict[str, str]:
+    if shutil.which("tesseract") is not None:
+        return values
+
+    tesseract_exe = get_tesseract_exe()
+    if tesseract_exe is not None and tesseract_exe.exists():
+        return values
+
+    entered = builtins.input(f"{VALUE_PROMPTS['TESSERACT_DIR']}:\n").strip()
+    if not entered:
+        raise SystemExit("Missing Tesseract directory or RapidOCR selection")
+
+    if entered.lower() in {"no", "n"}:
+        values["TESSERACT_DIR"] = "no"
+        os.environ["TESSERACT_DIR"] = "no"
+        env_write(values)
+        return values
+
+    candidate = Path(entered.strip('"'))
+    candidate_exe = candidate / "tesseract.exe"
+    if not candidate_exe.exists():
+        print(f"Could not find tesseract.exe in: {candidate}")
+        return resolve_tesseract(values)
+
+    values["TESSERACT_DIR"] = str(candidate)
+    os.environ["TESSERACT_DIR"] = str(candidate)
+    env_write(values)
+    return values
 
 
 def prompt_int(prompt: str) -> int:
@@ -147,7 +179,9 @@ def main() -> int:
     load_dotenv(ENV_FILE)
     values = {key: value for key, value in os.environ.items() if key.startswith("DISCORD_")}
     values = env_handle_missing(values)
+    values = resolve_tesseract(values)
     env_write(values)
+    debug_regions = values.get("DISCORD_WIDGET_DEBUG_REGIONS", "").strip().lower() in {"1", "true", "yes", "y"}
 
     if values.get("DISCORD_WIDGET_MANUAL_MODE", "").strip().lower() in {"1", "true", "yes", "y"}:
         profile = manual_profile(values["DISCORD_WIDGET_HERO_IMAGE_BASE_URL"], build_hero_image_url, build_hero_card_url)
@@ -155,16 +189,23 @@ def main() -> int:
     else:
         screenshot = find_latest_scr()
         print(f"Choosing screenshot: {screenshot}")
-        print("Running OCR! This might take a minute...")
-        words = run_ocr(screenshot)
+        if debug_regions:
+            debug_image = save_region_debug_image(screenshot)
+            print(f"Saved OCR region debug image: {debug_image}")
+            debug_dir = save_region_debug_crops(screenshot)
+            print(f"Saved OCR region crops: {debug_dir}")
+        print(f"Running OCR using {get_ocr_backend_name()}! This might take a minute...")
+        capture = run_ocr(screenshot)
         try:
-            profile = parse_deadlock_profile(words, hero_image_base_url=values["DISCORD_WIDGET_HERO_IMAGE_BASE_URL"])
+            profile = parse_deadlock_profile(capture, hero_image_base_url=values["DISCORD_WIDGET_HERO_IMAGE_BASE_URL"])
         except ValueError as exc:
             print(f"Selected file: {screenshot}")
             print(f"Exception during OCR: {exc}")
-            print("OCR detected lines:")
-            for line in group_words_into_lines(words):
-                print(line_text(line))
+            print("OCR detected regions:")
+            for region_name, region_words in _iter_ocr_regions(capture):
+                print(f"[{region_name}]")
+                for line in group_words_into_lines(region_words):
+                    print(line_text(line))
             raise
         profile.username = values["DISCORD_WIDGET_USERNAME"]
 
@@ -179,6 +220,13 @@ def main() -> int:
         token=values["DISCORD_BOT_TOKEN"],
     ).update(profile)
     return 0
+
+
+def _iter_ocr_regions(capture):
+    yield "nickname", capture.nickname
+    yield "top_hero", capture.top_hero
+    for key in ("games_played", "games_won", "commends", "kills", "assists", "denies"):
+        yield key, capture.stats.get(key, [])
 
 
 if __name__ == "__main__":

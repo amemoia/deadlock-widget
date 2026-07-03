@@ -13,6 +13,8 @@ This script searches for the Steam install directory in Program Files (x86), but
 
 ## Usage
 
+For the best results I recommend installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows), as the other option is prone to making mistakes
+
 Here's what the script does:
 
 1. Take a screenshot of your Deadlock stats page using Steam (F12 by default)
@@ -38,6 +40,7 @@ Alternatively, create a `.env` file with the following:
 Optional:
 - `DISCORD_IDENTITY_ID` - defaults to `0` which the widget guide recommends using, if you know what you're doing feel free to change this
 - `DISCORD_WIDGET_HERO_IMAGE_BASE_URL` - a place where all the hero renders taken from the deadlock wiki are stored, defaults to this repository's renders on github
+- `DISCORD_WIDGET_DEBUG_REGIONS=1` - debug stuff, outputs an image with ocr region boxes drawn and also outputs each crop in the /debug folder
 
 Note regarding hero renders: if you're planning to host them somewhere yourself, the script expects the same filenames that the Deadlock wiki uses. In the same folder, hero cards should be present. They follow the same naming convention except they have `_card` instead of `_Render` at the end
 

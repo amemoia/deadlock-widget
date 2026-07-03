@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import re
 
+TESSERACT_DIR_DEFAULT = Path(r"C:\Program Files\Tesseract-OCR")
+
 ENV_FILE = Path(".env")
 
 DL_APPID = 1422450
@@ -27,8 +29,10 @@ ENV_ORDER = (
     "DISCORD_USER_ID",
     "DISCORD_WIDGET_USERNAME",
     "DISCORD_BOT_TOKEN",
+    "TESSERACT_DIR",
     "DISCORD_IDENTITY_ID",
     "DISCORD_WIDGET_HERO_IMAGE_BASE_URL",
+    "DISCORD_WIDGET_DEBUG_REGIONS",
 )
 
 VALUE_PROMPTS = {
@@ -38,6 +42,7 @@ VALUE_PROMPTS = {
     "DISCORD_BOT_TOKEN": "Paste the bot token tied to your application ID",
     "DISCORD_IDENTITY_ID": "(Optional) Use only if you know what you're doing, defaults to 0",
     "DISCORD_WIDGET_HERO_IMAGE_BASE_URL": "(Optional) Use only if you want to change where you get images from",
+    "TESSERACT_DIR": "For the best results, I recommend installing Tesseract OCR and pasting its install directory here. Alternatively, type 'no' to use a simpler solution that doesnt require any installs (might not read values correctly though)",
     "MANUAL_NICKNAME": "Nickname",
     "MANUAL_TOP_HERO": "Most played hero",
     "MANUAL_GAMES_PLAYED": "Games played",
@@ -68,4 +73,18 @@ EXCLUDES = {
     "all heroes",
     "view forum login info",
     "friend code",
+}
+
+RANKS = {
+    "initiate",
+    "seeker",
+    "alchemist",
+    "arcanist",
+    "ritualist",
+    "emissary",
+    "archon",
+    "oracle",
+    "phantom",
+    "ascendant",
+    "eternus",
 }
