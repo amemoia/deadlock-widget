@@ -42,7 +42,7 @@ VALUE_PROMPTS = {
     "DISCORD_BOT_TOKEN": "Paste the bot token tied to your application ID",
     "DISCORD_IDENTITY_ID": "(Optional) Use only if you know what you're doing, defaults to 0",
     "DISCORD_WIDGET_HERO_IMAGE_BASE_URL": "(Optional) Use only if you want to change where you get images from",
-    "TESSERACT_DIR": "For the best results, I recommend installing Tesseract OCR and pasting its install directory here. Alternatively, type 'no' to use a simpler solution that doesnt require any installs (might not read values correctly though)",
+    "TESSERACT_DIR": "Couldn't find Tesseract OCR! Please refer to the README for the installation link. If it's already installed, you can paste the installation directory here. Otherwise close this window, install Tesseract and try again - it should (hopefully) detect your installation on its own!",
     "MANUAL_NICKNAME": "Nickname",
     "MANUAL_TOP_HERO": "Most played hero",
     "MANUAL_GAMES_PLAYED": "Games played",

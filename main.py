@@ -13,8 +13,8 @@ from pathlib import Path
 def _bootstrap_requirements() -> None:
     requirements = Path(__file__).with_name("requirements.txt")
     missing = [name for name in ("dotenv", "PIL") if find_spec(name) is None]
-    if find_spec("pytesseract") is None and find_spec("rapidocr_onnxruntime") is None:
-        missing.append("pytesseract|rapidocr_onnxruntime")
+    if find_spec("pytesseract") is None:
+        missing.append("pytesseract")
 
     if not missing:
         return
@@ -26,7 +26,7 @@ _bootstrap_requirements()
 from dotenv import load_dotenv, set_key
 
 from modules.models import DeadlockProfile, DeadlockStats
-from modules.ocr import get_ocr_backend_name, get_tesseract_exe, group_words_into_lines, line_text, run_ocr, save_region_debug_crops, save_region_debug_image
+from modules.ocr import get_tesseract_exe, group_words_into_lines, line_text, run_ocr, save_region_debug_crops, save_region_debug_image
 from modules.parser import build_hero_card_url, build_hero_image_url, parse_deadlock_profile
 from modules.screenshot import find_latest_scr
 from modules.widget_client import DiscordWidgetClient
@@ -61,26 +61,22 @@ def resolve_tesseract(values: dict[str, str]) -> dict[str, str]:
     if tesseract_exe is not None and tesseract_exe.exists():
         return values
 
-    entered = builtins.input(f"{VALUE_PROMPTS['TESSERACT_DIR']}:\n").strip()
-    if not entered:
-        raise SystemExit("Missing Tesseract directory or RapidOCR selection")
+    while True:
+        entered = builtins.input(f"{VALUE_PROMPTS['TESSERACT_DIR']}:\n").strip()
+        if not entered:
+            print("Please enter a Tesseract install directory.")
+            continue
 
-    if entered.lower() in {"no", "n"}:
-        values["TESSERACT_DIR"] = "no"
-        os.environ["TESSERACT_DIR"] = "no"
+        candidate = Path(entered.strip('"'))
+        candidate_exe = candidate / "tesseract.exe"
+        if not candidate_exe.exists():
+            print(f"Could not find tesseract.exe in: {candidate}")
+            continue
+
+        values["TESSERACT_DIR"] = str(candidate)
+        os.environ["TESSERACT_DIR"] = str(candidate)
         env_write(values)
         return values
-
-    candidate = Path(entered.strip('"'))
-    candidate_exe = candidate / "tesseract.exe"
-    if not candidate_exe.exists():
-        print(f"Could not find tesseract.exe in: {candidate}")
-        return resolve_tesseract(values)
-
-    values["TESSERACT_DIR"] = str(candidate)
-    os.environ["TESSERACT_DIR"] = str(candidate)
-    env_write(values)
-    return values
 
 
 def prompt_int(prompt: str) -> int:
@@ -194,7 +190,7 @@ def main() -> int:
             print(f"Saved OCR region debug image: {debug_image}")
             debug_dir = save_region_debug_crops(screenshot)
             print(f"Saved OCR region crops: {debug_dir}")
-        print(f"Running OCR using {get_ocr_backend_name()}! This might take a minute...")
+        print("Running OCR using Tesseract! This might take a minute...")
         capture = run_ocr(screenshot)
         try:
             profile = parse_deadlock_profile(capture, hero_image_base_url=values["DISCORD_WIDGET_HERO_IMAGE_BASE_URL"])

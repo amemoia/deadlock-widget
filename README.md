@@ -1,6 +1,8 @@
 # deadlock-widget
 A custom Deadlock widget updater for Discord. Requires an already set up Discord Application with a Profile Widget.
 
+(updated july 3rd) now requires installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows)!!!!!!!
+
 *(this is a lazy pet project i made for myself and dont plan to maintain, so the code might not be very good. feel free to poke around and make it work better for yourself)*
 
 ## ⚠️ please watch out for scams and info stealers, some widget-related guides or scripts could be malicious!
@@ -10,9 +12,6 @@ A custom Deadlock widget updater for Discord. Requires an already set up Discord
 I recommend Chloe Cinders [Custom Widget Guide](https://chloecinders.com/blog/discord-widgets) if you're looking to set one up. Please see the [Widget Config](#widget-config) section of this README to set the widget up to work with this.
 
 This script searches for the Steam install directory in Program Files (x86), but you can change the directory by modifying `SCR_DIR` in `modules/consts.py`. I have not tested this on Linux at all though. A manual mode also exists in case the script can't read your stats well
-
-For the best results I recommend installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows), as the other option is prone to making mistakes and i might end up removing it altogether
-
 
 ## Usage
 

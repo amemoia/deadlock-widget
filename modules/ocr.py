@@ -1,23 +1,18 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from functools import lru_cache
 import os
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 import re
 import shutil
+
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+
 from .consts import TESSERACT_DIR_DEFAULT
 
 try:
     import pytesseract
 except ImportError:
     pytesseract = None
-
-try:
-    from rapidocr_onnxruntime import RapidOCR
-except ImportError:
-    RapidOCR = None
 
 @dataclass(slots=True)
 class Box:
@@ -82,26 +77,21 @@ def run_ocr(image_path: Path) -> ProfileOcr:
     image = Image.open(image_path)
     image = ImageOps.exif_transpose(image).convert("RGB")
 
-    use_tesseract = _can_use_tesseract()
-    if not use_tesseract and RapidOCR is None:
-        raise RuntimeError("Neither Tesseract nor RapidOCR is available for OCR.")
+    if not _can_use_tesseract():
+        raise RuntimeError("Tesseract is required for OCR but could not be configured.")
 
     image_width, image_height = image.size
     stat_names = ("games_played", "games_won", "commends", "kills", "assists", "denies")
     stats = {
-        key: _ocr_stat_region(image, _box_for(key), image_width, image_height, use_tesseract)
+        key: _ocr_stat_region(image, _box_for(key), image_width, image_height)
         for key in stat_names
     }
 
     return ProfileOcr(
-        nickname=_ocr_region(image, _box_for("nickname"), image_width, image_height, use_tesseract),
-        top_hero=_ocr_hero_region(image, image_width, image_height, use_tesseract),
+        nickname=_ocr_region(image, _box_for("nickname"), image_width, image_height),
+        top_hero=_ocr_hero_region(image, image_width, image_height),
         stats=stats,
     )
-
-
-def get_ocr_backend_name() -> str:
-    return "Tesseract" if _can_use_tesseract() else "RapidOCR"
 
 
 def save_region_debug_image(image_path: Path, output_path: Path | None = None) -> Path:
@@ -162,35 +152,35 @@ def save_region_debug_crops(image_path: Path, output_dir: Path | None = None) ->
     return target_dir
 
 
-def _ocr_region(image: Image.Image, box: Box, image_width: int, image_height: int, use_tesseract: bool) -> list[OcrWord]:
+def _ocr_region(image: Image.Image, box: Box, image_width: int, image_height: int) -> list[OcrWord]:
     left, top, right, bottom = box.to_pixels(image_width, image_height)
     crop = image.crop((left, top, right, bottom))
-    return _ocr_words(crop, offset=(left, top), use_tesseract=use_tesseract)
+    return _tesseract_words(crop, offset=(left, top))
 
 
-def _ocr_stat_region(image: Image.Image, box: Box, image_width: int, image_height: int, use_tesseract: bool) -> list[OcrWord]:
+def _ocr_stat_region(image: Image.Image, box: Box, image_width: int, image_height: int) -> list[OcrWord]:
     left, top, right, bottom = box.to_pixels(image_width, image_height)
     crop = image.crop((left, top, right, bottom))
     value_crop = crop
 
     candidates = [
-        _ocr_words(value_crop, offset=(left, top), use_tesseract=use_tesseract),
-        _ocr_words(_prepare_stat_image(value_crop, scale=2, invert=False), offset=(left, top), use_tesseract=use_tesseract),
-        _ocr_words(_prepare_stat_image(value_crop, scale=2, invert=True), offset=(left, top), use_tesseract=use_tesseract),
+        _tesseract_words(value_crop, offset=(left, top)),
+        _tesseract_words(_prepare_stat_image(value_crop, scale=2, invert=False), offset=(left, top)),
+        _tesseract_words(_prepare_stat_image(value_crop, scale=2, invert=True), offset=(left, top)),
     ]
 
     return max(candidates, key=_numeric_score)
 
 
-def _ocr_hero_region(image: Image.Image, image_width: int, image_height: int, use_tesseract: bool) -> list[OcrWord]:
+def _ocr_hero_region(image: Image.Image, image_width: int, image_height: int) -> list[OcrWord]:
     left, top, right, bottom = _box_for("top_hero").to_pixels(image_width, image_height)
     crop = image.crop((left, top, right, bottom))
     band_top, band_bottom = _find_highlight_band(crop)
     focused = crop.crop((0, band_top, crop.width, band_bottom))
-    words = _ocr_words(focused, offset=(left, top + band_top), use_tesseract=use_tesseract)
+    words = _tesseract_words(focused, offset=(left, top + band_top))
     if words:
         return words
-    return _ocr_words(crop, offset=(left, top), use_tesseract=use_tesseract)
+    return _tesseract_words(crop, offset=(left, top))
 
 
 def _can_use_tesseract() -> bool:
@@ -210,21 +200,12 @@ def _can_use_tesseract() -> bool:
     return True
 
 
-def _ocr_words(image: Image.Image, offset: tuple[int, int], use_tesseract: bool) -> list[OcrWord]:
-    if use_tesseract:
-        return _tesseract_words(image, offset)
-    return _rapidocr_words(image, offset)
-
-
 def get_tesseract_dir() -> Path | None:
     configured = os.environ.get("TESSERACT_DIR")
     if configured is None:
         return TESSERACT_DIR_DEFAULT
 
     cleaned = configured.strip().strip('"')
-    if cleaned.lower() in {"", "no", "n", "none", "off", "disable", "disabled"}:
-        return None
-
     return Path(cleaned)
 
 
@@ -238,7 +219,7 @@ def get_tesseract_exe() -> Path | None:
 
 def _tesseract_words(image: Image.Image, offset: tuple[int, int]) -> list[OcrWord]:
     if pytesseract is None:
-        return []
+        raise RuntimeError("pytesseract is not installed.")
 
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
@@ -269,53 +250,6 @@ def _tesseract_words(image: Image.Image, offset: tuple[int, int]) -> list[OcrWor
     return words
 
 
-@lru_cache(maxsize=1)
-def _rapidocr_engine() -> object:
-    if RapidOCR is None:
-        raise RuntimeError("RapidOCR is not installed.")
-    return RapidOCR()
-
-
-def _rapidocr_words(image: Image.Image, offset: tuple[int, int]) -> list[OcrWord]:
-    if RapidOCR is None:
-        return []
-
-    engine = _rapidocr_engine()
-    with NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
-        temp_path = Path(temp_file.name)
-
-    try:
-        image.save(temp_path)
-        result = engine(str(temp_path))
-    finally:
-        temp_path.unlink(missing_ok=True)
-
-    if not result:
-        return []
-
-    detections = result[0] if isinstance(result, tuple) else result
-    words: list[OcrWord] = []
-    for item in detections or []:
-        if len(item) < 3:
-            continue
-        box, text, score = item[:3]
-        if not text:
-            continue
-        points = list(box)
-        xs = [int(point[0]) for point in points]
-        ys = [int(point[1]) for point in points]
-        words.append(
-            OcrWord(
-                text=str(text).strip(),
-                left=min(xs) + offset[0],
-                top=min(ys) + offset[1],
-                right=max(xs) + offset[0],
-                bottom=max(ys) + offset[1],
-                confidence=float(score),
-            )
-        )
-
-    return words
 
 
 def _prepare_stat_image(image: Image.Image, scale: int, invert: bool) -> Image.Image:
