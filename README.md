@@ -1,13 +1,8 @@
-# deadlock-widget
+# Discord deprecated custom widgets, this will no longer work!
+
 A custom Deadlock widget updater for Discord. Requires an already set up Discord Application with a Profile Widget.
 
-(updated july 3rd) now requires installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows)!!!!!!!
-
-*(this is a lazy pet project i made for myself and dont plan to maintain, so the code might not be very good. feel free to poke around and make it work better for yourself)*
-
-## ⚠️ please watch out for scams and info stealers, some widget-related guides or scripts could be malicious!
-
-**Note: Discord has restricted the ability for users to add custom application widgets not owned by them to their profile board. This means that the only way to get this widget on your profile is to set it up yourself.**
+Requires installing [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows)
 
 I recommend Chloe Cinders [Custom Widget Guide](https://chloecinders.com/blog/discord-widgets) if you're looking to set one up. Please see the [Widget Config](#widget-config) section of this README to set the widget up to work with this.
 
